@@ -1,0 +1,5 @@
+tasks
+*.o
+*.ko
+modules.order
+Module.symvers
