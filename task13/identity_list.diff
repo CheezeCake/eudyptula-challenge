@@ -1,0 +1,51 @@
+diff --git a/task12/identity_list.c b/task12/identity_list.c
+index b4ca250..731981c 100644
+--- a/task12/identity_list.c
++++ b/task12/identity_list.c
+@@ -11,13 +11,16 @@ struct identity {
+ 	struct list_head list;
+ };
+ 
++static struct kmem_cache *identity_cache;
++static const char *identity_cache_name = "identity";
++
+ static LIST_HEAD(identities);
+ 
+ static int identity_create(char *name, int id)
+ {
+ 	struct identity *identity;
+ 
+-	identity = kmalloc(sizeof(struct identity), GFP_KERNEL);
++	identity = kmem_cache_alloc(identity_cache, GFP_KERNEL);
+ 	if (!identity)
+ 		return -ENOMEM;
+ 
+@@ -50,7 +53,7 @@ static void identity_destroy(int id)
+ 	identity = identity_find(id);
+ 	if (identity) {
+ 		list_del(&identity->list);
+-		kfree(identity);
++		kmem_cache_free(identity_cache, identity);
+ 	}
+ }
+ 
+@@ -59,6 +62,11 @@ static int __init identity_list_init(void)
+ 	struct identity *temp;
+ 	int err;
+ 
++	identity_cache = kmem_cache_create(identity_cache_name,
++					   sizeof(struct identity), 0, 0, NULL);
++	if (!identity_cache)
++		return -ENOMEM;
++
+ 	err = identity_create("Alice", 1);
+ 	if (err)
+ 		return err;
+@@ -94,6 +102,7 @@ fail_2:
+ 
+ static void __exit identity_list_exit(void)
+ {
++	kmem_cache_destroy(identity_cache);
+ }
+ 
+ module_init(identity_list_init);
