@@ -1,0 +1,62 @@
+From 59b3156adea8d683393fc99dcf0cd4ac6106253d Mon Sep 17 00:00:00 2001
+From: CheezeCake <emmanuel.nicolet@gmail.com>
+Date: Wed, 2 Jan 2019 22:14:38 +0100
+Subject: [PATCH] add id sysfs attribute to e1000 ethernet driver
+
+---
+ drivers/net/ethernet/intel/e1000/e1000_main.c | 25 +++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/drivers/net/ethernet/intel/e1000/e1000_main.c b/drivers/net/ethernet/intel/e1000/e1000_main.c
+index 8fe9af0e2ab7..4322fe9ee709 100644
+--- a/drivers/net/ethernet/intel/e1000/e1000_main.c
++++ b/drivers/net/ethernet/intel/e1000/e1000_main.c
+@@ -214,6 +214,25 @@ struct net_device *e1000_get_hw_dev(struct e1000_hw *hw)
+ 	return adapter->netdev;
+ }
+ 
++#define MY_ID "my_id"
++#define MY_ID_SIZE sizeof(MY_ID)
++
++static ssize_t id_show(struct device *dev, struct device_attribute *attr,
++		       char *buf)
++{
++	return scnprintf(buf, PAGE_SIZE, "%s", MY_ID);
++}
++
++static ssize_t id_store(struct device *kobj, struct device_attribute *attr,
++			const char *buf, size_t size)
++{
++	return (size == MY_ID_SIZE && strncmp(buf, MY_ID, size - 1) == 0) ?
++		       size :
++		       -EINVAL;
++}
++
++static DEVICE_ATTR(id, 0660, id_show, id_store);
++
+ /**
+  * e1000_init_module - Driver Registration Routine
+  *
+@@ -932,6 +951,10 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+ 	int bars, need_ioport;
+ 	bool disable_dev = false;
+ 
++	err = device_create_file(&pdev->dev, &dev_attr_id);
++	if (err)
++		return err;
++
+ 	/* do not allocate ioport bars when not needed */
+ 	need_ioport = e1000_is_need_ioport(pdev);
+ 	if (need_ioport) {
+@@ -1261,6 +1284,8 @@ static void e1000_remove(struct pci_dev *pdev)
+ 	struct e1000_hw *hw = &adapter->hw;
+ 	bool disable_dev;
+ 
++	device_remove_file(&pdev->dev, &dev_attr_id);
++
+ 	e1000_down_and_stop(adapter);
+ 	e1000_release_manageability(adapter);
+ 
+-- 
+2.20.1
+
