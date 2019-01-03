@@ -1,0 +1,75 @@
+From e5dddc7d92790af33a8c8e26ce61e8f8c1c94811 Mon Sep 17 00:00:00 2001
+From: CheezeCake <emmanuel.nicolet@gmail.com>
+Date: Thu, 3 Jan 2019 21:29:25 +0100
+Subject: [PATCH] add "id" field to task_struct and a /proc file for it
+
+---
+ fs/proc/base.c        | 10 ++++++++++
+ include/linux/sched.h |  2 ++
+ kernel/fork.c         |  2 ++
+ 3 files changed, 14 insertions(+)
+
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index d7fd1ca807d2..8f5092ca074f 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -144,6 +144,14 @@ struct pid_entry {
+ 		NULL, &proc_single_file_operations,	\
+ 		{ .proc_show = show } )
+ 
++static int proc_id(struct seq_file *m, struct pid_namespace *ns,
++		   struct pid *pid, struct task_struct *task)
++{
++	seq_printf(m, "%x\n", task->id);
++	task->id++;
++	return 0;
++}
++
+ /*
+  * Count the number of hardlinks for the pid_entry table, excluding the .
+  * and .. links.
+@@ -2950,6 +2958,7 @@ static const struct pid_entry tgid_base_stuff[] = {
+ #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
+ 	ONE("syscall",    S_IRUSR, proc_pid_syscall),
+ #endif
++	ONE("id",	  S_IRUGO, proc_id),
+ 	REG("cmdline",    S_IRUGO, proc_pid_cmdline_ops),
+ 	ONE("stat",       S_IRUGO, proc_tgid_stat),
+ 	ONE("statm",      S_IRUGO, proc_pid_statm),
+@@ -3336,6 +3345,7 @@ static const struct pid_entry tid_base_stuff[] = {
+ #ifdef CONFIG_HAVE_ARCH_TRACEHOOK
+ 	ONE("syscall",   S_IRUSR, proc_pid_syscall),
+ #endif
++	ONE("id",	 S_IRUGO, proc_id),
+ 	REG("cmdline",   S_IRUGO, proc_pid_cmdline_ops),
+ 	ONE("stat",      S_IRUGO, proc_tid_stat),
+ 	ONE("statm",     S_IRUGO, proc_pid_statm),
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 89541d248893..0e323b4e71b3 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -597,6 +597,8 @@ struct task_struct {
+ 	 */
+ 	struct thread_info		thread_info;
+ #endif
++	unsigned			id;
++
+ 	/* -1 unrunnable, 0 runnable, >0 stopped: */
+ 	volatile long			state;
+ 
+diff --git a/kernel/fork.c b/kernel/fork.c
+index d439c48ecf18..88bec562aa4e 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -861,6 +861,8 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
+ 
+ 	err = arch_dup_task_struct(tsk, orig);
+ 
++	tsk->id = 0xc0de1d;
++
+ 	/*
+ 	 * arch_dup_task_struct() clobbers the stack-related fields.  Make
+ 	 * sure they're properly initialized before using any stack-related
+-- 
+2.20.1
+
