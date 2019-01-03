@@ -34,7 +34,8 @@ static DEFINE_MUTEX(foo_mutex);
 static ssize_t foo_show(struct kobject *kobj, struct kobj_attribute *attr,
 			char *buf)
 {
-	mutex_lock(&foo_mutex);
+	if (mutex_lock_interruptible(&foo_mutex))
+		return -ERESTARTSYS;
 
 	memcpy(buf, page, written);
 
@@ -46,7 +47,8 @@ static ssize_t foo_show(struct kobject *kobj, struct kobj_attribute *attr,
 static ssize_t foo_store(struct kobject *kobj, struct kobj_attribute *attr,
 			 const char *buf, size_t size)
 {
-	mutex_lock(&foo_mutex);
+	if (mutex_lock_interruptible(&foo_mutex))
+		return -ERESTARTSYS;
 
 	memcpy(page, buf, size);
 	written = size;

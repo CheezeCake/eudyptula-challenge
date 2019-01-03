@@ -59,7 +59,8 @@ static ssize_t foo_read(struct file *filp, char __user *buf, size_t count,
 	if (*f_pos != 0)
 		return 0;
 
-	mutex_lock(&foo_mutex);
+	if (mutex_lock_interruptible(&foo_mutex))
+		return -ERESTARTSYS;
 
 	if (count > written)
 		count = written;
@@ -84,7 +85,8 @@ static ssize_t foo_write(struct file *filp, const char __user *buf,
 	if (count > PAGE_SIZE)
 		return -EINVAL;
 
-	mutex_lock(&foo_mutex);
+	if (mutex_lock_interruptible(&foo_mutex))
+		return -ERESTARTSYS;
 
 	if (copy_from_user(page, buf, count)) {
 		written = 0;
