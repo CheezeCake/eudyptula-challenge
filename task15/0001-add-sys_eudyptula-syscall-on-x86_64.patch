@@ -1,0 +1,73 @@
+From c1d311e94a56259654a5a3fc6e9d7a95893fed40 Mon Sep 17 00:00:00 2001
+From: CheezeCake <emmanuel.nicolet@gmail.com>
+Date: Sat, 5 Jan 2019 23:06:46 +0100
+Subject: [PATCH] add sys_eudyptula syscall on x86_64
+
+---
+ arch/x86/entry/syscalls/syscall_64.tbl |  1 +
+ include/linux/syscalls.h               |  3 +++
+ kernel/Makefile                        |  2 +-
+ kernel/eudyptula.c                     | 12 ++++++++++++
+ 4 files changed, 17 insertions(+), 1 deletion(-)
+ create mode 100644 kernel/eudyptula.c
+
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index f0b1709a5ffb..3ee55b6c02ec 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -343,6 +343,7 @@
+ 332	common	statx			__x64_sys_statx
+ 333	common	io_pgetevents		__x64_sys_io_pgetevents
+ 334	common	rseq			__x64_sys_rseq
++335	common	eudyptula		__x64_sys_eudyptula
+ 
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 257cccba3062..6fc72ec7d8e8 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -707,6 +707,9 @@ asmlinkage long sys_getegid(void);
+ asmlinkage long sys_gettid(void);
+ asmlinkage long sys_sysinfo(struct sysinfo __user *info);
+ 
++/* kernel/eudyptula.c */
++asmlinkage long sys_eudyptula(int high_id, int low_id);
++
+ /* ipc/mqueue.c */
+ asmlinkage long sys_mq_open(const char __user *name, int oflag, umode_t mode, struct mq_attr __user *attr);
+ asmlinkage long sys_mq_unlink(const char __user *name);
+diff --git a/kernel/Makefile b/kernel/Makefile
+index cde93d54c571..5f3f10167342 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -10,7 +10,7 @@ obj-y     = fork.o exec_domain.o panic.o \
+ 	    extable.o params.o \
+ 	    kthread.o sys_ni.o nsproxy.o \
+ 	    notifier.o ksysfs.o cred.o reboot.o \
+-	    async.o range.o smpboot.o ucount.o
++	    async.o range.o smpboot.o ucount.o eudyptula.o
+ 
+ obj-$(CONFIG_MODULES) += kmod.o
+ obj-$(CONFIG_MULTIUSER) += groups.o
+diff --git a/kernel/eudyptula.c b/kernel/eudyptula.c
+new file mode 100644
+index 000000000000..7983470d1426
+--- /dev/null
++++ b/kernel/eudyptula.c
+@@ -0,0 +1,12 @@
++// SPDX-License-Identifier: GPL-2.0
++
++#include <linux/syscalls.h>
++#include <linux/types.h>
++
++#define MY_ID 0xc001deadbeef
++
++SYSCALL_DEFINE2(eudyptula, int, high_id, int, low_id)
++{
++	u64 id = ((u64)high_id << 32) | ((u64)low_id & 0xffffffff);
++	return (id == MY_ID) ? 0 : -EINVAL;
++}
+-- 
+2.20.1
+
