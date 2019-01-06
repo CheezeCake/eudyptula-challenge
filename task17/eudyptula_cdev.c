@@ -12,9 +12,14 @@ static struct task_struct *eudyptula_kthr;
 
 int eudyptula_kthr_fn(void *data)
 {
-	if (wait_event_interruptible(wee_wait, kthread_should_stop() != 0))
-		return -ERESTARTSYS;
-	return 0;
+	while (1) {
+		if (wait_event_interruptible(wee_wait,
+					     kthread_should_stop() != 0))
+			return -ERESTARTSYS;
+
+		if (kthread_should_stop())
+			return 0;
+	}
 }
 
 #define MY_ID "my_id"
