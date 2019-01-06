@@ -158,4 +158,4 @@ module_exit(eudyptula_exit);
 
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("EN");
-MODULE_DESCRIPTION("Eudyptula chardev (task 17)");
+MODULE_DESCRIPTION("Eudyptula chardev (task 18)");
