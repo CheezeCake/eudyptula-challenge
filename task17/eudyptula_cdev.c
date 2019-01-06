@@ -13,8 +13,7 @@ static struct task_struct *eudyptula_kthr;
 int eudyptula_kthr_fn(void *data)
 {
 	while (1) {
-		if (wait_event_interruptible(wee_wait,
-					     kthread_should_stop() != 0))
+		if (wait_event_interruptible(wee_wait, kthread_should_stop()))
 			return -ERESTARTSYS;
 
 		if (kthread_should_stop())
