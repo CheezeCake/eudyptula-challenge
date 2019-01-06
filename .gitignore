@@ -1,5 +1,8 @@
 tasks
 *.o
 *.ko
+*.mod.c
+*.cmd
+.tmp_versions
 modules.order
 Module.symvers
