@@ -1,0 +1,96 @@
+From 5cbc593881f769070debe239210e92fd05f9945b Mon Sep 17 00:00:00 2001
+From: CheezeCake <emmanuel.nicolet@gmail.com>
+Date: Mon, 7 Jan 2019 17:06:43 +0100
+Subject: [PATCH] add an ioctl to modify a FAT volume label
+
+This adds an ioctl to set the volume label of a mounted FAT (32 or 16) filesystem.
+---
+ fs/fat/file.c                 | 52 +++++++++++++++++++++++++++++++++++
+ include/uapi/linux/msdos_fs.h |  1 +
+ 2 files changed, 53 insertions(+)
+
+diff --git a/fs/fat/file.c b/fs/fat/file.c
+index 13935ee99e1e..607b8a768000 100644
+--- a/fs/fat/file.c
++++ b/fs/fat/file.c
+@@ -152,6 +152,56 @@ static int fat_ioctl_fitrim(struct inode *inode, unsigned long arg)
+ 	return 0;
+ }
+ 
++static void set_volume_label(struct buffer_head *bh,
++			     const char label[MSDOS_NAME], bool isfat32)
++{
++	struct fat_boot_sector *b = (struct fat_boot_sector *)bh->b_data;
++	char *vol_label = (isfat32) ? b->fat32.vol_label : b->fat16.vol_label;
++
++	memcpy(vol_label, label, MSDOS_NAME);
++
++	mark_buffer_dirty(bh);
++	sync_dirty_buffer(bh);
++	brelse(bh);
++}
++
++static int fat_ioctl_set_volume_label(struct inode *inode, unsigned long arg)
++{
++	struct super_block *sb = inode->i_sb;
++	struct msdos_sb_info *sbi = MSDOS_SB(sb);
++	struct buffer_head *bh;
++	struct fat_boot_sector *b;
++	char new_label[MSDOS_NAME];
++	bool isfat32 = is_fat32(sbi);
++
++	if (!capable(CAP_SYS_ADMIN))
++		return -EPERM;
++	if (sb_rdonly(sb))
++		return -EPERM;
++	if (sbi->dirty)
++		return -EAGAIN;
++
++	if (copy_from_user(new_label, (char *)arg, MSDOS_NAME))
++		return -EFAULT;
++
++	bh = sb_bread(sb, 0);
++	if (!bh)
++		return -EIO;
++
++	set_volume_label(bh, new_label, isfat32);
++
++	if (isfat32) {
++		b = (struct fat_boot_sector *)bh->b_data;
++		bh = sb_bread(sb, b->fat32.backup_boot);
++		if (bh)
++			set_volume_label(bh, new_label, true);
++		else
++			return -EIO;
++	}
++
++	return 0;
++}
++
+ long fat_generic_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+ {
+ 	struct inode *inode = file_inode(filp);
+@@ -166,6 +216,8 @@ long fat_generic_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+ 		return fat_ioctl_get_volume_id(inode, user_attr);
+ 	case FITRIM:
+ 		return fat_ioctl_fitrim(inode, arg);
++	case FAT_IOCTL_SET_VOLUME_LABEL:
++		return fat_ioctl_set_volume_label(inode, arg);
+ 	default:
+ 		return -ENOTTY;	/* Inappropriate ioctl for device */
+ 	}
+diff --git a/include/uapi/linux/msdos_fs.h b/include/uapi/linux/msdos_fs.h
+index a5773899f4d9..078c29e12d6a 100644
+--- a/include/uapi/linux/msdos_fs.h
++++ b/include/uapi/linux/msdos_fs.h
+@@ -104,6 +104,7 @@ struct __fat_dirent {
+ #define FAT_IOCTL_SET_ATTRIBUTES	_IOW('r', 0x11, __u32)
+ /*Android kernel has used 0x12, so we use 0x13*/
+ #define FAT_IOCTL_GET_VOLUME_ID		_IOR('r', 0x13, __u32)
++#define FAT_IOCTL_SET_VOLUME_LABEL	_IOW('r', 0x14, char[MSDOS_NAME])
+ 
+ struct fat_boot_sector {
+ 	__u8	ignored[3];	/* Boot strap short or near jump */
+-- 
+2.20.1
+
